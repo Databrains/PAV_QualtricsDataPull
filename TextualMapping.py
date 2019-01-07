@@ -81,6 +81,7 @@ for question in questions:
                 npsScore = "Promoter"
             mappedValues = [QID, qName, choice, npsScore]
             print(mappedValues)
+            writer.writerow(mappedValues)
             QID = question
     elif qType['selector'] == "Likert":
         choices = questions[question]['choices']
