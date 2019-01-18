@@ -19,7 +19,7 @@ csvFile = open(csvFileName, 'r',encoding='utf8')
      Set Up Pivoted Data File to be written
 ***************************************************'''
 writer=csv.writer(open(outputPivotFile,'a',encoding='utf8'),delimiter="|")
-header = ['ResponseID', 'Question', 'Answer' ]
+header = ['ResponseID', 'Question', 'Answer']
 rowCount = 1
 
 
@@ -57,5 +57,11 @@ for row in pivotedReader:
 '''**************************************************
         Write Embedded Data Output File
 **************************************************'''
-embeddedData = pd.read_csv(csvFileName, usecols=doNotPivot, skiprows=(1,2))
+embeddedData = pd.read_csv(csvFileName, usecols=doNotPivot, skiprows=(1,2), dtype=object)
 embeddedDataFile = pd.DataFrame.to_csv(embeddedData,embeddedDataFileName,sep="|", index=False)
+
+
+
+
+
+
