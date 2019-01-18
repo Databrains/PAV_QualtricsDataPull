@@ -1,6 +1,7 @@
 import csv
 import json
 from  datetime import datetime as dt
+import pandas as pd
 
 
 '''****************************************************
@@ -11,15 +12,16 @@ runDate = dt.utcnow().strftime('%Y.%m.%d.T.%H.%M.%S')
 csvFileName = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles\SA Core Survey.csv'
 outputPivotFile = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles\PivotedSurveyResults_' + runDate + ".txt"
 doNotPivotFile = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DoNotPivotQuestions.csv'
-
+embeddedDataFileName = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles\EmbeddedResults_' + runDate + ".txt"
+csvFile = open(csvFileName, 'r',encoding='utf8')
 
 '''***************************************************
-    Set Up File to be written
+     Set Up Pivoted Data File to be written
 ***************************************************'''
 writer=csv.writer(open(outputPivotFile,'a',encoding='utf8'),delimiter="|")
 header = ['ResponseID', 'Question', 'Answer' ]
 rowCount = 1
-csvFile = open(csvFileName, 'r',encoding='utf8')
+
 
 
 '''***************************************************
@@ -27,18 +29,18 @@ csvFile = open(csvFileName, 'r',encoding='utf8')
 ***************************************************'''
 doNotPivot = []
 with open(doNotPivotFile) as file:
-        reader = csv.reader(file, delimiter=",")
-        for row in reader:
+        doNotPivotReader = csv.reader(file, delimiter=",")
+        for row in doNotPivotReader:
             doNotPivot.append(row[0])
 
 
 '''**************************************************
-        Write Pivoted Output File
+        Write Pivoted Data Output File
 **************************************************'''
-reader = csv.DictReader(csvFile)
-print(reader.fieldnames)
+pivotedReader = csv.DictReader(csvFile)
+print(pivotedReader.fieldnames)
 writer.writerow(header)
-for row in reader:
+for row in pivotedReader:
     responseId = row['ResponseID']
     rowCount = rowCount + 1
     for item in row:
@@ -52,5 +54,8 @@ for row in reader:
 
 
 
-
-
+'''**************************************************
+        Write Embedded Data Output File
+**************************************************'''
+embeddedData = pd.read_csv(csvFileName, usecols=doNotPivot, skiprows=(1,2))
+embeddedDataFile = pd.DataFrame.to_csv(embeddedData,embeddedDataFileName,sep="|", index=False)
