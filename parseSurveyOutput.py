@@ -59,6 +59,9 @@ for row in pivotedReader:
 **************************************************'''
 embeddedData = pd.read_csv(csvFileName, usecols=doNotPivot, skiprows=(1,2), dtype=object)
 embeddedDataFile = pd.DataFrame.to_csv(embeddedData,embeddedDataFileName,sep="|", index=False)
+print("Embedded Data File Complete")
+
+print('Process Complete')
 
 
 
