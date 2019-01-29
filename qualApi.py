@@ -5,53 +5,96 @@ import io
 import time
 import datetime as dt
 import csv
-# import pysftp
+import pandas as pd
+import os
 
+"""*********************************************************************************************************************
+    Define functions
+*********************************************************************************************************************"""
+
+
+def removeFile(fileName):
+    try:
+        if os.path.exists(fileName):
+            os.remove(fileName)
+            print('OS Check: ' + fileName + ' exists and was removed due to pre-processing rules')
+        else:
+            print('OS Check: ' + fileName + ' does not exist, proceed as planned')
+    except PermissionError:
+        os.chmod(fileName, stat.S_IRWXO)
+        os.remove(fileName)
+        print('OS Check: ' + fileName + ' was locked for editing by another user. The file mode was changed to allow '
+                                        + 'deletion')
+
+
+'''*********************************************************************************************************************
+                                            Set up Variables To be used
+*********************************************************************************************************************'''
 cfg = ConfigParser()
 cfg.read(r'C:\Users\JefferyMcCain\Documents\PythonFiles\PrincetonQualtrics\QualtricsApi\venv\qualCred.txt')
-apiToken = cfg.get('qualtrics','apiToken')
+apiToken = cfg.get('qualtrics', 'apiToken')
 surveyId = cfg.get('surveys', 'saCore')
 dataCenter = 'az1'
 fileFormat = 'csv'
+"""********************************************************
+    API Related Variables
+********************************************************"""
 v4ExportBaseurl = 'https://az1.qualtrics.com/API/v3/surveys/' + surveyId + '/export-responses'
 v3ExportBaseurl = 'https://az1.qualtrics.com/API/v3/responseexports/'
 progressStatus = 'inProgress'
 getSurveyBaseUrl = 'https://az1.qualtrics.com/API/v3/surveys/' + surveyId
 requestCheckProgress = 0
 progressStatus = "in progress"
-# requestDate = (dt.datetime.utcnow().replace(microsecond=0) - dt.timedelta(days=1)).isoformat() + 'Z'
+
+"""*******************************************************
+    Time Related Variables: used to uniquely name files
+*******************************************************"""
 yesterday = (dt.datetime.utcnow() - dt.timedelta(days=1))
 yesterdayDateFormat = yesterday.strftime("%Y-%m-%d")
 currentTime = yesterday.strftime("%H.%M.%S")
-requestDate = yesterdayDateFormat + "T" + '07:00:00Z'
-hmsServerHost = '172.31.24.116'
-hmsUserName = 'athleteviewpoint'
-hmsPassword = 'AthL3te^!ewP0!nt'
-QuatricsOutputFileName = r'C:\Users\JefferyMcCain\Downloads\v3.' + str(yesterdayDateFormat) \
-                         + "T" + str(currentTime) +  'output.txt'
-hmsServerSaveName = '/AthleteViewpoint/SA_Survey.txt'
 
-header = {
-    'X-API-Token' : apiToken,"content-type": "application/json" }
 
-"""
-Test Connection to API
-"""
+"""******************************************************
+    Create File Names
+******************************************************"""
+
+QualtricsDnldFilePath = r"C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles"
+
+QualtricsDnldFile = QualtricsDnldFilePath + r"\SA Core Survey.csv"
+
+surveyResultCSV = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles\SA Core Survey.csv'
+
+doNotPivotFile = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DoNotPivotQuestions.csv'
+
+embeddedDataFileName = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles' \
+    '\EmbeddedSurveyResults' + ".txt"
+
+outputPivotFile = r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles' \
+                  r'\PivotedSurveyResults' + ".txt"
+
+
+"""********************************
+    Test Connection to API
+********************************"""
 # testUrl ='https://az1.qualtrics.com/API/v3/surveys'
 # testCall = requests.get(testUrl, headers=header)
 # print(testCall.status_code)
 # print(testCall.content)
 
 
+"""*********************************************************************************************************************
+                                Make Call to Qualtrics and begin download process
+*********************************************************************************************************************"""
+header = {'X-API-Token': apiToken, "content-type": "application/json"}
 downloadRequestUrl = v3ExportBaseurl
 downloadRequestPayload = '{"format":"' + fileFormat + '","surveyId":"' + surveyId + '"}'
-    #'","startDate":"' + requestDate + '"}'
 downloadRequestResponse = requests.request("POST", downloadRequestUrl, data=downloadRequestPayload, headers=header)
 print(downloadRequestResponse.text)
 progressId = downloadRequestResponse.json()["result"]["id"]
 
-# Step 2: Checking on Data Export Progress and waiting until export is ready
-
+"""***************************************************************************************
+    Check on Data Export Progress and waiting until export is ready
+***************************************************************************************"""
 isFile = None
 
 while requestCheckProgress < 100 and progressStatus is not "complete" and isFile is None:
@@ -59,55 +102,78 @@ while requestCheckProgress < 100 and progressStatus is not "complete" and isFile
     requestCheckResponse = requests.request("GET", requestCheckUrl, headers=header)
     isFile = (requestCheckResponse.json()["result"]["file"])
     if isFile is None:
-       print ("file not ready")
+        print("file not ready")
     else:
-       print ("file created:", requestCheckResponse.json()["result"]["file"])
+        print("file created:", requestCheckResponse.json()["result"]["file"])
     requestCheckProgress = requestCheckResponse.json()["result"]["percentComplete"]
     print("Download is " + str(requestCheckProgress) + " complete")
     time.sleep(5)
 
 
-# Step 3: Downloading file
+"""********************************************
+    Download the file
+********************************************"""
 requestDownloadUrl = v3ExportBaseurl + progressId + '/file'
 requestDownload = requests.request("GET", requestDownloadUrl, headers=header, stream=True)
 
-# Step 4: Unzipping the file
-zipfile.ZipFile(io.BytesIO(requestDownload.content)).extractall(path=r"C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles")
-
-print('Complete')
-
-
-
+"""************************************
+    Unzip and save the file
+************************************"""
+zipfile.ZipFile(io.BytesIO(requestDownload.content)).extractall(path=QualtricsDnldFilePath)
+print('File Downloaded and Placed')
 
 
+"""*********************************************************************************************************************
+                                    Create | delimited output files
+*********************************************************************************************************************"""
 
-try:
 
-    with open(r'C:\Users\JefferyMcCain\Documents\Consulting\Athlete View\DataDumps\OutputFiles\SA Core Survey.csv',
-              encoding="utf8") as fileIn:
-        with open(QuatricsOutputFileName, 'w', newline='',
-                  encoding="utf8") as fileOut:
-            reader = csv.DictReader(fileIn, delimiter=",")
-            writer = csv.DictWriter(fileOut, reader.fieldnames, delimiter="|" )
-            writer.writeheader()
-            writer.writerows(reader)
-except PermissionError:
-    print('Error')
+'''***************************************************
+     Set Up Pivoted Data File to be written
+***************************************************'''
+removeFile(outputPivotFile)
+removeFile(embeddedDataFileName)
+writer = csv.writer(open(outputPivotFile, 'a', encoding='utf8'), delimiter="|")
+header = ['ResponseID', 'Question', 'Answer']
+rowCount = 1
 
-###SFTP to Server
-# cnopts = pysftp.CnOpts()
-# cnopts.hostkeys = None
-# srv = pysftp.Connection(host=hmsServerHost , username=hmsUserName,
-#                         password=hmsPassword, cnopts=cnopts, port=6424)
-#
-# print('Connected')
-#
-# startDirectory = srv.pwd
-#
-#
-# srv.put(QuatricsOutputFileName, hmsServerSaveName)
-# print('File Placed')
-#
-# srv.close()
-# print('Connection Closed')
+'''***************************************************
+    Create List of Questions to not pivot
+***************************************************'''
+doNotPivot = []
+with open(doNotPivotFile) as file:
+        doNotPivotReader = csv.reader(file, delimiter=",")
+        for row in doNotPivotReader:
+            doNotPivot.append(row[0])
+
+
+'''**************************************************
+        Write Pivoted Data Output File
+**************************************************'''
+csvFile = open(QualtricsDnldFile, 'r', encoding='utf8')
+pivotedReader = csv.DictReader(csvFile)
+# print(pivotedReader.fieldnames)
+writer.writerow(header)
+for row in pivotedReader:
+    responseId = row['ResponseID']
+    rowCount = rowCount + 1
+    for item in row:
+        listOfItems = [rowCount, responseId, item, row[item]]
+        if listOfItems[0] > 3:
+            if listOfItems[3] != "":
+                surveyResults = listOfItems[1:]
+                if surveyResults[1] not in doNotPivot:
+                    # print(listOfItems[1:])
+                    writer.writerow(surveyResults)
+
+print('Pivoted Data File Complete')
+'''**************************************************
+        Write Embedded Data Output File
+**************************************************'''
+embeddedData = pd.read_csv(QualtricsDnldFile, usecols=doNotPivot, skiprows=(1, 2), dtype=object)
+embeddedDataFile = pd.DataFrame.to_csv(embeddedData, embeddedDataFileName, sep="|", index=False)
+csvFile.close()
+print("Embedded Data File Complete")
+print('Process Complete')
+
 
