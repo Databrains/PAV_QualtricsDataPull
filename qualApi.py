@@ -119,6 +119,7 @@ requestDownload = requests.request("GET", requestDownloadUrl, headers=header, st
 """************************************
     Unzip and save the file
 ************************************"""
+removeFile(QualtricsDnldFile)
 zipfile.ZipFile(io.BytesIO(requestDownload.content)).extractall(path=QualtricsDnldFilePath)
 print('File Downloaded and Placed')
 
